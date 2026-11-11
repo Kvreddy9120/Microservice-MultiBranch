@@ -3,8 +3,10 @@
 #
 # Licensed under the Apache License, Version 2.0
 
-FROM python:3.10.8-slim@sha256:49749648f4426b31b20fca55ad854caa55ff59dc604f2f76b57d814e0a47c181 AS base
+# Base image - Python 3.10 with Debian Bookworm
+FROM python:3.10-slim-bookworm AS base
 
+# Builder stage
 FROM base AS builder
 
 # Install required packages
@@ -23,10 +25,11 @@ RUN wget -qO/bin/grpc_health_probe \
     https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 \
     && chmod +x /bin/grpc_health_probe
 
-# Install Python packages
+# Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Application stage
 FROM base AS without-grpc-health-probe-bin
 
 # Enable unbuffered logging
@@ -40,13 +43,16 @@ WORKDIR /email_server
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.10/ /usr/local/lib/python3.10/
 
-# Add application files
+# Copy application files
 COPY . .
 
+# Expose application port
 EXPOSE 8080
 
+# Start application
 ENTRYPOINT ["python", "email_server.py"]
 
+# Final stage
 FROM without-grpc-health-probe-bin
 
 # Copy grpc health probe
